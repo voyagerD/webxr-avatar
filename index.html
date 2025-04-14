@@ -2,23 +2,15 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>WebXR Avatar from Assets</title>
+    <title>WebXR Test</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   </head>
   <body>
     <a-scene>
-      <a-assets>
-        <!-- Загрузка 3D-модели из папки assets -->
-        <a-asset-item id="avatarModel" src="assets/avatar.glb"></a-asset-item>
-      </a-assets>
-
-      <!-- Отображение модели -->
-      <a-entity gltf-model="#avatarModel" position="0 0 -2" scale="1 1 1"></a-entity>
-
-      <!-- Камера, свет, небо -->
+      <a-box position="0 1 -3" rotation="0 45 0" color="#4CC3D9"></a-box>
       <a-sky color="#ECECEC"></a-sky>
-      <a-light type="ambient" intensity="1.2"></a-light>
-      <a-camera position="0 1.6 0" wasd-controls look-controls></a-camera>
+      <a-camera position="0 1.6 0"></a-camera>
     </a-scene>
   </body>
 </html>
+
