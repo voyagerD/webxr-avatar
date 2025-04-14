@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>WebXR Avatar from Assets</title>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  </head>
+  <body>
+    <a-scene>
+      <a-assets>
+        <!-- Загрузка 3D-модели из папки assets -->
+        <a-asset-item id="avatarModel" src="assets/avatar.glb"></a-asset-item>
+      </a-assets>
+
+      <!-- Отображение модели -->
+      <a-entity gltf-model="#avatarModel" position="0 0 -2" scale="1 1 1"></a-entity>
+
+      <!-- Камера, свет, небо -->
+      <a-sky color="#ECECEC"></a-sky>
+      <a-light type="ambient" intensity="1.2"></a-light>
+      <a-camera position="0 1.6 0" wasd-controls look-controls></a-camera>
+    </a-scene>
+  </body>
+</html>
