@@ -61,9 +61,11 @@
 
             // Загрузка анимаций из основной модели
             const clips = gltf.animations || [];
-            console.log("Animations found in walkman.glb:", clips.map(clip => clip.name));
+            console.log("Animations found in walkman.glb:", clips);
             
             clips.forEach((clip) => {
+              // Если анимация без имени, присваиваем имя 'walk' по умолчанию
+              if (!clip.name) clip.name = 'walk';
               actions[clip.name] = mixer.clipAction(clip);
               console.log("Registered animation:", clip.name);
             });
@@ -113,7 +115,7 @@
               return;
             }
 
-            console.log(`Loaded ${filename}, animations:`, gltf.animations.map(a => a.name || "unnamed"));
+            console.log(`Loaded ${filename}, animations:`, gltf.animations);
             
             const clip = gltf.animations[0];
             // Если анимация без имени, задаем имя на основе имени файла
@@ -122,7 +124,7 @@
               console.log(`Assigned name '${clip.name}' to unnamed animation`);
             }
 
-            const action = mixer.clipAction(clip);
+            const action = mixer.clipAction(clip, model);
             
             if (currentAction) {
               currentAction.fadeOut(0.3);
@@ -142,5 +144,3 @@
     </script>
   </body>
 </html>
-
-
