@@ -5,20 +5,23 @@
     <title>WebXR Avatar with Animations</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <style>
-      #menu {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        background: rgba(255, 255, 255, 0.9);
-        padding: 12px;
-        border-radius: 8px;
-        font-family: sans-serif;
-      }
-      button {
-        margin: 5px;
-        padding: 8px 12px;
-      }
-    </style>
+  #menu {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 10; /* Важно! поверх сцены */
+    background: rgba(255, 255, 255, 0.9);
+    padding: 12px;
+    border-radius: 8px;
+    font-family: sans-serif;
+  }
+  button {
+    margin: 5px;
+    padding: 8px 12px;
+    cursor: pointer;
+  }
+</style>
+
   </head>
   <body>
     <div id="menu">
