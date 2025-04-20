@@ -2,10 +2,11 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>WebXR Avatar with  Animation</title>
+    <title>WebXR Avatar with Three.js Animation</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <!-- Исправленные ссылки на Three.js -->
     <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/GLTFLoader.min.js"></script>
     <style>
       #menu {
         position: absolute;
@@ -35,8 +36,8 @@
       <button onclick="playClipFromGLB('arm.glb')">👋 Махание</button>
     </div>
 
-    <a-scene>
-      <a-assets>
+    <a-scene loading-screen="dotsColor: black; backgroundColor: white">
+      <a-assets timeout="30000">
         <a-asset-item id="walkmanModel" src="assets/walkman.glb"></a-asset-item>
       </a-assets>
 
@@ -48,46 +49,74 @@
     </a-scene>
 
     <script>
-      let mixer, model, currentAction;
+      // Глобальные переменные
+      let mixer = null;
+      let model = null;
+      let currentAction = null;
       const actions = {};
+      
+      // Инициализация загрузчика
       const loader = new THREE.GLTFLoader();
+      
+      // Флаг готовности
+      let isModelReady = false;
 
       AFRAME.registerComponent("my-animation", {
         init: function () {
           this.el.addEventListener("model-loaded", () => {
+            console.log("Model loaded event fired");
+            
             model = this.el.getObject3D("mesh");
+            if (!model) {
+              console.error("Failed to get model mesh");
+              return;
+            }
+            
             const gltf = this.el.components["gltf-model"].model;
             mixer = new THREE.AnimationMixer(model);
-
+            
             // Загрузка анимаций из основной модели
             const clips = gltf.animations || [];
-            console.log("Animations found in walkman.glb:", clips);
+            console.log("Found animations in model:", clips);
+            
+            if (clips.length === 0) {
+              console.warn("No animations found in the model");
+            }
             
             clips.forEach((clip) => {
-              // Если анимация без имени, присваиваем имя 'walk' по умолчанию
-              if (!clip.name) clip.name = 'walk';
-              actions[clip.name] = mixer.clipAction(clip);
-              console.log("Registered animation:", clip.name);
+              // Нормализация имени анимации
+              const clipName = clip.name.toLowerCase();
+              actions[clipName] = mixer.clipAction(clip, model);
+              console.log(`Registered animation: ${clipName}`);
             });
-
-            // Попытка запустить анимацию walk, если она есть
-            if (actions["walk"]) {
-              playClip("walk");
-            } else {
-              console.warn("Animation 'walk' not found in model");
-            }
+            
+            isModelReady = true;
+            
+            // Попытка запустить анимацию walk
+            playClip('walk');
           });
         },
+        
         tick: function (time, delta) {
-          if (mixer) mixer.update(delta / 1000);
+          if (mixer) {
+            mixer.update(delta / 1000);
+          }
         }
       });
 
       function playClip(name) {
-        console.log("Attempting to play animation:", name);
-        if (!actions[name]) {
-          console.error(`Animation "${name}" not found in registered actions`);
-          alert(`Анимация "${name}" не найдена.`);
+        if (!isModelReady) {
+          console.error("Model is not ready yet");
+          setTimeout(() => playClip(name), 500);
+          return;
+        }
+        
+        const normalizedName = name.toLowerCase();
+        console.log(`Trying to play animation: ${normalizedName}`);
+        
+        if (!actions[normalizedName]) {
+          console.error(`Animation "${normalizedName}" not found. Available:`, Object.keys(actions));
+          alert(`Анимация "${name}" не найдена в модели.`);
           return;
         }
 
@@ -95,44 +124,45 @@
           currentAction.fadeOut(0.3);
         }
 
-        currentAction = actions[name];
+        currentAction = actions[normalizedName];
         currentAction.reset().fadeIn(0.3).play();
-        console.log(`Now playing animation: ${name}`);
+        console.log(`Now playing: ${normalizedName}`);
       }
 
       function playClipFromGLB(filename) {
-        console.log(`Loading external animation from: ${filename}`);
-        if (!model || !mixer) {
-          console.error("Model or mixer not ready");
+        if (!isModelReady) {
+          console.error("Model is not ready yet");
+          setTimeout(() => playClipFromGLB(filename), 500);
           return;
         }
-
+        
+        console.log(`Loading external animation: ${filename}`);
+        
         loader.load(`assets/${filename}`, 
           (gltf) => {
             if (!gltf.animations || gltf.animations.length === 0) {
-              console.error(`No animations found in ${filename}`);
+              console.error(`No animations in ${filename}`);
               alert(`Файл ${filename} не содержит анимаций`);
               return;
             }
-
-            console.log(`Loaded ${filename}, animations:`, gltf.animations);
             
             const clip = gltf.animations[0];
-            // Если анимация без имени, задаем имя на основе имени файла
-            if (!clip.name) {
-              clip.name = filename.replace('.glb', '');
-              console.log(`Assigned name '${clip.name}' to unnamed animation`);
-            }
-
+            const clipName = clip.name || filename.replace('.glb', '');
+            console.log(`Loaded animation: ${clipName}`);
+            
             const action = mixer.clipAction(clip, model);
+            if (!action) {
+              console.error("Failed to create action");
+              return;
+            }
             
             if (currentAction) {
               currentAction.fadeOut(0.3);
             }
-
+            
             currentAction = action;
-            action.reset().fadeIn(0.3).play();
-            console.log(`Now playing animation: ${clip.name}`);
+            currentAction.reset().fadeIn(0.3).play();
+            console.log(`Now playing external animation: ${clipName}`);
           },
           undefined,
           (error) => {
