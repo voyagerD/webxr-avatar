@@ -2,8 +2,8 @@
 <html lang="ru">
   <head>
     <meta charset="utf-8" />
-    <title>3D Анимации персонажа</title>
-    <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
+    <title>Анимации персонажа</title>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
 
     <style>
       body { margin: 0; }
@@ -56,7 +56,7 @@
       let model = null;
       let currentAction = null;
       const actions = {};
-      const loader = new AFRAME.THREE.GLTFLoader();
+      const loader = new AFRAME.THREE.GLTFLoader(); // Используем GLTFLoader из A-Frame
 
       AFRAME.registerComponent('my-anim', {
         init: function () {
@@ -66,7 +66,7 @@
 
             mixer = new THREE.AnimationMixer(model);
 
-            console.log('Анимации в модели:', gltfModel.animations);
+            console.log('Анимации в модели:', gltfModel.animations); // Отладка
             if (gltfModel.animations.length === 0) {
               console.warn('Анимации отсутствуют в модели walk_man.glb');
               return;
@@ -92,11 +92,9 @@
         }
 
         const clipName = Object.keys(actions)[0]; // первая анимация
-        if (currentAction) {
-          currentAction.stop(); // Полностью останавливаем предыдущую анимацию
-        }
+        if (currentAction) currentAction.fadeOut(0.3);
         currentAction = actions[clipName];
-        currentAction.reset().play();
+        currentAction.reset().fadeIn(0.3).play();
         console.log("▶ Воспроизведена встроенная:", clipName);
       }
 
@@ -107,20 +105,11 @@
           const clip = gltf.animations[0];
           if (!clip) return alert("Нет анимации в " + file);
 
-          console.log(`Загружена анимация из ${file}:`, clip); // Отладка
-
-          // Проверяем, можно ли применить анимацию к модели
           const action = mixer.clipAction(clip, model);
-          if (!action) {
-            console.error(`Не удалось создать действие для анимации из ${file}`);
-            return;
-          }
 
-          if (currentAction) {
-            currentAction.stop(); // Полностью останавливаем предыдущую анимацию
-          }
+          if (currentAction) currentAction.fadeOut(0.3);
           currentAction = action;
-          currentAction.reset().play();
+          action.reset().fadeIn(0.3).play();
 
           console.log(`▶ Воспроизведена внешняя анимация из ${file}`);
         }, undefined, (err) => {
