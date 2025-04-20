@@ -56,16 +56,24 @@
         init: function () {
           this.el.addEventListener("model-loaded", () => {
             model = this.el.getObject3D("mesh");
+            const gltf = this.el.components["gltf-model"].model;
             mixer = new THREE.AnimationMixer(model);
 
-            // встроенные клипы из walkman.glb
-            const clips = model.animations || this.el.components["gltf-model"].model.animations;
+            // Загрузка анимаций из основной модели
+            const clips = gltf.animations || [];
+            console.log("Animations found in walkman.glb:", clips.map(clip => clip.name));
+            
             clips.forEach((clip) => {
               actions[clip.name] = mixer.clipAction(clip);
+              console.log("Registered animation:", clip.name);
             });
 
-            // Автостарт: ходьба
-            playClip("walk");
+            // Попытка запустить анимацию walk, если она есть
+            if (actions["walk"]) {
+              playClip("walk");
+            } else {
+              console.warn("Animation 'walk' not found in model");
+            }
           });
         },
         tick: function (time, delta) {
@@ -74,7 +82,9 @@
       });
 
       function playClip(name) {
+        console.log("Attempting to play animation:", name);
         if (!actions[name]) {
+          console.error(`Animation "${name}" not found in registered actions`);
           alert(`Анимация "${name}" не найдена.`);
           return;
         }
@@ -85,26 +95,52 @@
 
         currentAction = actions[name];
         currentAction.reset().fadeIn(0.3).play();
+        console.log(`Now playing animation: ${name}`);
       }
 
       function playClipFromGLB(filename) {
-        if (!model || !mixer) return;
+        console.log(`Loading external animation from: ${filename}`);
+        if (!model || !mixer) {
+          console.error("Model or mixer not ready");
+          return;
+        }
 
-        loader.load(`assets/${filename}`, (gltf) => {
-          const clip = gltf.animations[0]; // первая анимация
-          const action = mixer.clipAction(clip);
+        loader.load(`assets/${filename}`, 
+          (gltf) => {
+            if (!gltf.animations || gltf.animations.length === 0) {
+              console.error(`No animations found in ${filename}`);
+              alert(`Файл ${filename} не содержит анимаций`);
+              return;
+            }
 
-          if (currentAction) {
-            currentAction.fadeOut(0.3);
+            console.log(`Loaded ${filename}, animations:`, gltf.animations.map(a => a.name || "unnamed"));
+            
+            const clip = gltf.animations[0];
+            // Если анимация без имени, задаем имя на основе имени файла
+            if (!clip.name) {
+              clip.name = filename.replace('.glb', '');
+              console.log(`Assigned name '${clip.name}' to unnamed animation`);
+            }
+
+            const action = mixer.clipAction(clip);
+            
+            if (currentAction) {
+              currentAction.fadeOut(0.3);
+            }
+
+            currentAction = action;
+            action.reset().fadeIn(0.3).play();
+            console.log(`Now playing animation: ${clip.name}`);
+          },
+          undefined,
+          (error) => {
+            console.error(`Error loading ${filename}:`, error);
+            alert(`Ошибка загрузки файла ${filename}`);
           }
-
-          currentAction = action;
-          action.reset().fadeIn(0.3).play();
-        });
+        );
       }
     </script>
   </body>
 </html>
-
 
 
