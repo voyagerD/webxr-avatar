@@ -1,122 +1,99 @@
-<!DOCTYPE html>
-<html lang="ru">
-  <head>
-    <meta charset="utf-8" />
-    <title>3D Анимации персонажа</title>
-    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+<script>
+  let mixer = null;
+  let model = null;
+  let currentAction = null;
+  const actions = {};
+  const loader = new AFRAME.THREE.GLTFLoader();
 
-    <style>
-      body { margin: 0; }
-      #menu {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        z-index: 10;
-        background: rgba(255, 255, 255, 0.9);
-        padding: 10px;
-        border-radius: 8px;
-        font-family: sans-serif;
-      }
-      button {
-        display: block;
-        margin: 5px 0;
-        padding: 6px 10px;
-        font-size: 14px;
-        cursor: pointer;
-      }
-    </style>
-  </head>
+  AFRAME.registerComponent('my-anim', {
+    init: function () {
+      this.el.addEventListener('model-loaded', () => {
+        model = this.el.getObject3D('mesh');
+        const gltfModel = this.el.components['gltf-model'].model;
 
-  <body>
-    <div id="menu">
-      <h3>Анимации</h3>
-      <button onclick="playBuiltInAnimation()">▶ Ходьба (встроенная)</button>
-      <button onclick="playExternalAnimation('arm.glb')">👋 Махание</button>
-      <button onclick="playExternalAnimation('pointing.glb')">👉 Указание</button>
-    </div>
+        mixer = new THREE.AnimationMixer(model);
 
-    <a-scene>
-      <a-assets>
-        <a-asset-item id="walkman" src="assets/walk_man.glb"></a-asset-item>
-      </a-assets>
-
-      <a-entity id="avatar"
-                gltf-model="#walkman"
-                position="0 0 -2"
-                scale="1 1 1"
-                my-anim></a-entity>
-
-      <a-light type="ambient" intensity="1.2"></a-light>
-      <a-light type="directional" intensity="0.6" position="1 2 1"></a-light>
-      <a-camera position="0 1.6 2"></a-camera>
-    </a-scene>
-
-    <script>
-      let mixer = null;
-      let model = null;
-      let currentAction = null;
-      const actions = {};
-      const loader = new AFRAME.THREE.GLTFLoader(); // Используем GLTFLoader из A-Frame
-
-      AFRAME.registerComponent('my-anim', {
-        init: function () {
-          this.el.addEventListener('model-loaded', () => {
-            model = this.el.getObject3D('mesh');
-            const gltfModel = this.el.components['gltf-model'].model;
-
-            mixer = new THREE.AnimationMixer(model);
-
-            console.log('Анимации в модели:', gltfModel.animations); // Отладка
-            if (gltfModel.animations.length === 0) {
-              console.warn('Анимации отсутствуют в модели walk_man.glb');
-              return;
-            }
-
-            gltfModel.animations.forEach(clip => {
-              actions[clip.name] = mixer.clipAction(clip, model);
-              console.log('Доступная встроенная анимация:', clip.name);
-            });
-
-            playBuiltInAnimation();
+        console.log('Анимации в основной модели:', gltfModel.animations);
+        
+        // Регистрируем все анимации из основной модели
+        if (gltfModel.animations && gltfModel.animations.length > 0) {
+          gltfModel.animations.forEach(clip => {
+            actions[clip.name] = mixer.clipAction(clip, model);
+            console.log('Зарегистрирована встроенная анимация:', clip.name);
           });
-        },
-        tick: function (_, delta) {
-          if (mixer) mixer.update(delta / 1000);
+          
+          // Автовоспроизведение первой анимации
+          playBuiltInAnimation();
+        } else {
+          console.warn('В основной модели нет анимаций!');
         }
       });
+    },
+    tick: function (_, delta) {
+      if (mixer) mixer.update(delta / 1000);
+    }
+  });
 
-      function playBuiltInAnimation() {
-        if (!actions || Object.keys(actions).length === 0) {
-          console.warn("Встроенные анимации не загружены.");
+  function playBuiltInAnimation() {
+    if (!actions || Object.keys(actions).length === 0) {
+      console.warn("Нет доступных встроенных анимаций");
+      return;
+    }
+
+    // Ищем анимацию с именем 'walk' или берем первую
+    const clipName = actions['walk'] ? 'walk' : Object.keys(actions)[0];
+    
+    if (currentAction) currentAction.fadeOut(0.3);
+    currentAction = actions[clipName];
+    currentAction.reset().fadeIn(0.3).play();
+    console.log("▶ Воспроизведена встроенная анимация:", clipName);
+  }
+
+  function playExternalAnimation(file) {
+    if (!model || !mixer) {
+      alert("Модель ещё не загружена. Подождите...");
+      return;
+    }
+
+    console.log(`Загрузка внешней анимации из ${file}...`);
+    
+    loader.load(`assets/${file}`, 
+      (gltf) => {
+        // Проверяем наличие анимаций в файле
+        if (!gltf.animations || gltf.animations.length === 0) {
+          alert(`Файл ${file} не содержит анимаций!`);
+          console.error(`В файле ${file} нет анимаций`);
           return;
         }
 
-        const clipName = Object.keys(actions)[0]; // первая анимация
+        // Берем первую анимацию из файла
+        const clip = gltf.animations[0];
+        console.log(`Найдена анимация в ${file}:`, clip.name || 'unnamed');
+        
+        // Создаем действие и привязываем к нашей модели
+        const action = mixer.clipAction(clip, model);
+        if (!action) {
+          alert("Ошибка создания анимации");
+          return;
+        }
+
+        // Плавный переход
         if (currentAction) currentAction.fadeOut(0.3);
-        currentAction = actions[clipName];
-        currentAction.reset().fadeIn(0.3).play();
-        console.log("▶ Воспроизведена встроенная:", clipName);
+        
+        currentAction = action;
+        currentAction.reset()
+          .setEffectiveTimeScale(1) // нормальная скорость
+          .setEffectiveWeight(1)    // полная интенсивность
+          .fadeIn(0.3)
+          .play();
+          
+        console.log(`▶ Успешно воспроизводится анимация из ${file}`);
+      },
+      undefined,
+      (err) => {
+        console.error("Ошибка загрузки:", err);
+        alert(`Ошибка загрузки файла: ${file}\nПроверьте консоль`);
       }
-
-      function playExternalAnimation(file) {
-        if (!model || !mixer) return alert("Модель ещё не готова.");
-
-        loader.load(`assets/${file}`, (gltf) => {
-          const clip = gltf.animations[0];
-          if (!clip) return alert("Нет анимации в " + file);
-
-          const action = mixer.clipAction(clip, model);
-
-          if (currentAction) currentAction.fadeOut(0.3);
-          currentAction = action;
-          action.reset().fadeIn(0.3).play();
-
-          console.log(`▶ Воспроизведена внешняя анимация из ${file}`);
-        }, undefined, (err) => {
-          console.error("Ошибка загрузки анимации:", err);
-          alert("Ошибка загрузки файла: " + file);
-        });
-      }
-    </script>
-  </body>
-</html>
+    );
+  }
+</script>
