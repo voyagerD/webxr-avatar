@@ -1,11 +1,9 @@
 <!DOCTYPE html>
 <html lang="ru">
   <head>
-  <meta charset="utf-8" />
-  <title>3D Анимации персонажа</title>
-  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/GLTFLoader.js"></script> <!-- ← рабочая -->
+    <meta charset="utf-8" />
+    <title>3D Анимации персонажа</title>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
 
     <style>
       body { margin: 0; }
@@ -58,7 +56,7 @@
       let model = null;
       let currentAction = null;
       const actions = {};
-      const loader = new THREE.GLTFLoader();
+      const loader = new AFRAME.THREE.GLTFLoader(); // Используем GLTFLoader из A-Frame
 
       AFRAME.registerComponent('my-anim', {
         init: function () {
@@ -68,12 +66,17 @@
 
             mixer = new THREE.AnimationMixer(model);
 
+            console.log('Анимации в модели:', gltfModel.animations); // Отладка
+            if (gltfModel.animations.length === 0) {
+              console.warn('Анимации отсутствуют в модели walk_man.glb');
+              return;
+            }
+
             gltfModel.animations.forEach(clip => {
               actions[clip.name] = mixer.clipAction(clip, model);
               console.log('Доступная встроенная анимация:', clip.name);
             });
 
-            // Воспроизводим встроенную (первая)
             playBuiltInAnimation();
           });
         },
