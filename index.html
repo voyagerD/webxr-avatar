@@ -2,21 +2,57 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>WebXR Avatar</title>
+    <title>WebXR Avatar with Animations</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <style>
+      #menu {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 12px;
+        border-radius: 8px;
+        font-family: sans-serif;
+      }
+      button {
+        margin: 5px;
+        padding: 8px 12px;
+      }
+    </style>
   </head>
   <body>
+    <div id="menu">
+      <h3>Выбери анимацию:</h3>
+      <button onclick="switchModel('walkman')">🚶 Ходьба</button>
+      <button onclick="switchModel('arm')">👋 Махать рукой</button>
+      <button onclick="switchModel('pointing')">👉 Указывать</button>
+    </div>
+
     <a-scene>
       <a-assets>
-        <a-asset-item id="avatarModel" src="assets/human.glb"></a-asset-item>
+        <a-asset-item id="walkmanModel" src="assets/walkman.glb"></a-asset-item>
+        <a-asset-item id="armModel" src="assets/arm.glb"></a-asset-item>
+        <a-asset-item id="pointingModel" src="assets/pointing.glb"></a-asset-item>
       </a-assets>
 
-      <a-entity gltf-model="#avatarModel" position="0 0 -2" scale="1 1 1"></a-entity>
+      <a-entity id="avatar" gltf-model="#walkmanModel" position="0 0 -2" scale="1 1 1"></a-entity>
 
       <a-sky color="#ECECEC"></a-sky>
       <a-light type="ambient" intensity="1.2"></a-light>
       <a-camera position="0 1.6 0" look-controls wasd-controls></a-camera>
     </a-scene>
+
+    <script>
+      function switchModel(animation) {
+        const avatar = document.getElementById('avatar');
+        const modelMap = {
+          walkman: '#walkmanModel',
+          arm: '#armModel',
+          pointing: '#pointingModel'
+        };
+        avatar.setAttribute('gltf-model', modelMap[animation]);
+      }
+    </script>
   </body>
 </html>
 
