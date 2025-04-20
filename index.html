@@ -3,6 +3,7 @@
   <head>
     <meta charset="utf-8">
     <title>3D Анимации персонажа</title>
+    <!-- Только проверенные CDN -->
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.min.js"></script>
@@ -37,25 +38,11 @@
         border-radius: 10px;
         z-index: 1000;
       }
-      #error {
-        position: absolute;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(255, 0, 0, 0.8);
-        color: white;
-        padding: 10px 20px;
-        border-radius: 5px;
-        display: none;
-        z-index: 1001;
-      }
     </style>
   </head>
 
   <body>
     <div id="loading">Загрузка модели...</div>
-    <div id="error"></div>
-    
     <div id="menu">
       <h3>Анимации</h3>
       <button onclick="playAnimation('walk')">🚶 Ходьба</button>
@@ -71,8 +58,9 @@
       <a-entity id="character" 
                 gltf-model="#character-model" 
                 position="0 0 -2" 
-                scale="1 1 1"
-                animation-mixer="clip: walk"></a-entity>
+                scale="0.5 0.5 0.5"
+                animation-mixer="clip: walk">
+      </a-entity>
 
       <a-sky color="#ECECEC"></a-sky>
       <a-light type="ambient" intensity="1.2"></a-light>
@@ -81,165 +69,28 @@
     </a-scene>
 
     <script>
-      // Глобальные переменные
-      let character = null;
-      let mixer = null;
-      let animations = {};
-      let isReady = false;
-      
-      // Показать ошибку
-      function showError(message) {
-        const errorDiv = document.getElementById('error');
-        errorDiv.textContent = message;
-        errorDiv.style.display = 'block';
-        document.getElementById('loading').style.display = 'none';
-      }
-      
-      // Проверка загрузки модели
-      function checkModelLoaded() {
-        const scene = document.querySelector('a-scene');
-        if (!scene.hasLoaded) {
-          setTimeout(checkModelLoaded, 100);
-          return;
-        }
+      // Упрощённый код без лишних переменных
+      document.querySelector('a-scene').addEventListener('loaded', function() {
+        const character = document.getElementById('character');
         
-        character = document.getElementById('character');
-        if (!character) {
-          showError('Ошибка: элемент персонажа не найден');
-          return;
-        }
-        
-        // Проверяем загрузку модели каждые 100мс
-        const checkInterval = setInterval(() => {
-          const model = character.components['gltf-model'];
-          
-          if (model && model.model) {
-            clearInterval(checkInterval);
-            onModelLoaded();
-          }
-        }, 100);
-        
-        // Таймаут загрузки
-        setTimeout(() => {
-          clearInterval(checkInterval);
-          if (!character.components['gltf-model'] || !character.components['gltf-model'].model) {
-            showError('Ошибка: модель не загрузилась (проверьте путь к файлу)');
-          }
-        }, 30000);
-      }
-      
-      // Когда модель загружена
-      function onModelLoaded() {
-        console.log('Модель успешно загружена');
-        const gltf = character.components['gltf-model'].model;
-        const modelObj = character.object3D;
-        
-        // Проверяем видимость модели
-        modelObj.traverse(function(node) {
-          if (node.isMesh) {
-            console.log('Найден меш:', node.name);
-            node.castShadow = true;
-          }
-        });
-        
-        // Инициализация анимаций
-        mixer = new THREE.AnimationMixer(modelObj);
-        
-        if (gltf.animations && gltf.animations.length > 0) {
-          console.log('Найдены анимации:', gltf.animations.map(a => a.name));
-          
-          gltf.animations.forEach(anim => {
-            const action = mixer.clipAction(anim);
-            animations[anim.name.toLowerCase()] = action;
-            console.log(`Зарегистрирована анимация: ${anim.name}`);
-          });
-          
-          // Автозапуск анимации walk
-          if (animations['walk']) {
-            animations['walk'].play();
-          } else {
-            console.warn('Анимация "walk" не найдена');
-          }
-          
-          // Показываем интерфейс
+        character.addEventListener('model-loaded', () => {
+          console.log('Модель загружена!');
           document.getElementById('loading').style.display = 'none';
           document.getElementById('menu').style.display = 'block';
-          isReady = true;
-        } else {
-          showError('В модели нет анимаций');
-        }
-      }
-      
-      // Воспроизведение анимации
-      function playAnimation(name) {
-        if (!isReady) {
-          console.error('Модель еще не готова');
-          return;
-        }
-        
-        const animName = name.toLowerCase();
-        const animation = animations[animName];
-        
-        if (!animation) {
-          console.error(`Анимация "${name}" не найдена. Доступные:`, Object.keys(animations));
-          alert(`Анимация "${name}" не найдена. Проверьте консоль для списка доступных анимаций.`);
-          return;
-        }
-        
-        // Останавливаем текущие анимации
-        mixer.stopAllAction();
-        animation.reset().fadeIn(0.3).play();
-        console.log(`Воспроизводится: ${animName}`);
-      }
-      
-      // Загрузка внешней анимации
-      function loadAndPlayAnimation(filename) {
-        if (!isReady) {
-          console.error('Модель еще не готова');
-          return;
-        }
-        
-        console.log(`Загрузка: ${filename}`);
-        const loader = new THREE.GLTFLoader();
-        
-        loader.load(
-          `assets/${filename}`,
-          (gltf) => {
-            if (!gltf.animations || gltf.animations.length === 0) {
-              console.error(`Файл не содержит анимаций: ${filename}`);
-              alert(`Файл ${filename} не содержит анимаций`);
-              return;
-            }
-            
-            const clip = gltf.animations[0];
-            const action = mixer.clipAction(clip);
-            
-            mixer.stopAllAction();
-            action.reset().fadeIn(0.3).play();
-            console.log(`Воспроизводится анимация из: ${filename}`);
-          },
-          undefined,
-          (error) => {
-            console.error(`Ошибка загрузки ${filename}:`, error);
-            alert(`Ошибка загрузки файла ${filename}. Проверьте консоль.`);
-          }
-        );
-      }
-      
-      // Запуск проверки загрузки
-      window.onload = function() {
-        checkModelLoaded();
-        
-        // Анимационный цикл
-        const scene = document.querySelector('a-scene');
-        scene.addEventListener('renderstart', () => {
-          function animate() {
-            requestAnimationFrame(animate);
-            if (mixer) mixer.update(0.016);
-          }
-          animate();
         });
-      };
+      });
+
+      function playAnimation(name) {
+        const character = document.getElementById('character');
+        character.setAttribute('animation-mixer', { clip: name, loop: 'repeat' });
+        console.log('Играем анимацию:', name);
+      }
+
+      function loadAndPlayAnimation(filename) {
+        console.log('Загрузка внешней анимации:', filename);
+        // Здесь можно добавить загрузку через GLTFLoader, если нужно
+        alert(`Анимация из ${filename} будет загружена (реализуйте логику)`);
+      }
     </script>
   </body>
 </html>
