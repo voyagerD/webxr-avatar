@@ -2,45 +2,117 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <title>Walk Man Model</title>
+    <title>Модель с внешними анимациями</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/GLTFLoader.min.js"></script>
     <style>
-      body {
-        margin: 0;
-        font-family: sans-serif;
-      }
-      #info {
+      body { margin: 0; }
+      #menu {
         position: absolute;
         top: 10px;
         left: 10px;
-        background: rgba(255, 255, 255, 0.85);
-        padding: 10px 15px;
+        z-index: 10;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 10px;
         border-radius: 8px;
-        z-index: 999;
+        font-family: sans-serif;
+      }
+      button {
+        display: block;
+        margin: 5px 0;
+        padding: 6px 10px;
+        font-size: 14px;
+        cursor: pointer;
       }
     </style>
   </head>
+
   <body>
-    <div id="info">
-      <strong>Модель:</strong> walk_man.glb<br />
-      <strong>Путь:</strong> assets/walk_man.glb
+    <div id="menu">
+      <h3>Анимации</h3>
+      <button onclick="playBuiltInAnimation()">▶ Ходьба (встроенная)</button>
+      <button onclick="playExternalAnimation('arm.glb')">👋 Махание</button>
+      <button onclick="playExternalAnimation('pointing.glb')">👉 Указание</button>
     </div>
 
-    <a-scene background="color: #ECECEC">
+    <a-scene>
       <a-assets>
-        <a-asset-item id="walkmanModel" src="assets/walk_man.glb"></a-asset-item>
+        <a-asset-item id="walkman" src="assets/walk_man.glb"></a-asset-item>
       </a-assets>
 
-      <a-entity gltf-model="#walkmanModel"
-                animation-mixer
+      <a-entity id="avatar"
+                gltf-model="#walkman"
                 position="0 0 -2"
-                scale="1 1 1">
-      </a-entity>
+                scale="1 1 1"
+                my-anim></a-entity>
 
       <a-light type="ambient" intensity="1.2"></a-light>
       <a-light type="directional" intensity="0.6" position="1 2 1"></a-light>
       <a-camera position="0 1.6 2"></a-camera>
     </a-scene>
+
+    <script>
+      let mixer = null;
+      let model = null;
+      let currentAction = null;
+      const actions = {};
+      const loader = new THREE.GLTFLoader();
+
+      AFRAME.registerComponent('my-anim', {
+        init: function () {
+          this.el.addEventListener('model-loaded', () => {
+            model = this.el.getObject3D('mesh');
+            const gltfModel = this.el.components['gltf-model'].model;
+
+            mixer = new THREE.AnimationMixer(model);
+
+            gltfModel.animations.forEach(clip => {
+              actions[clip.name] = mixer.clipAction(clip, model);
+              console.log('Доступная встроенная анимация:', clip.name);
+            });
+
+            // Воспроизводим встроенную (первая)
+            playBuiltInAnimation();
+          });
+        },
+        tick: function (_, delta) {
+          if (mixer) mixer.update(delta / 1000);
+        }
+      });
+
+      function playBuiltInAnimation() {
+        if (!actions || Object.keys(actions).length === 0) {
+          console.warn("Встроенные анимации не загружены.");
+          return;
+        }
+
+        const clipName = Object.keys(actions)[0]; // первая анимация
+        if (currentAction) currentAction.fadeOut(0.3);
+        currentAction = actions[clipName];
+        currentAction.reset().fadeIn(0.3).play();
+        console.log("▶ Воспроизведена встроенная:", clipName);
+      }
+
+      function playExternalAnimation(file) {
+        if (!model || !mixer) return alert("Модель ещё не готова.");
+
+        loader.load(`assets/${file}`, (gltf) => {
+          const clip = gltf.animations[0];
+          if (!clip) return alert("Нет анимации в " + file);
+
+          const action = mixer.clipAction(clip, model);
+
+          if (currentAction) currentAction.fadeOut(0.3);
+          currentAction = action;
+          action.reset().fadeIn(0.3).play();
+
+          console.log(`▶ Воспроизведена внешняя анимация из ${file}`);
+        }, undefined, (err) => {
+          console.error("Ошибка загрузки анимации:", err);
+          alert("Ошибка загрузки файла: " + file);
+        });
+      }
+    </script>
   </body>
 </html>
