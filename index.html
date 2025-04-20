@@ -1,122 +1,132 @@
 <!DOCTYPE html>
 <html lang="ru">
-  <head>
-    <meta charset="utf-8" />
-    <title>Анимации персонажа</title>
-    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+<head>
+  <meta charset="utf-8" />
+  <title>Анимации с ручным bind</title>
+  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/GLTFLoader.min.js"></script>
+  <style>
+    body { margin: 0; }
+    #menu {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 10px;
+      border-radius: 8px;
+      font-family: sans-serif;
+    }
+    button {
+      display: block;
+      margin: 5px 0;
+      padding: 6px 10px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+  </style>
+</head>
 
-    <style>
-      body { margin: 0; }
-      #menu {
-        position: absolute;
-        top: 10px;
-        left: 10px;
-        z-index: 10;
-        background: rgba(255, 255, 255, 0.9);
-        padding: 10px;
-        border-radius: 8px;
-        font-family: sans-serif;
-      }
-      button {
-        display: block;
-        margin: 5px 0;
-        padding: 6px 10px;
-        font-size: 14px;
-        cursor: pointer;
-      }
-    </style>
-  </head>
+<body>
+  <div id="menu">
+    <h3>Анимации</h3>
+    <button onclick="playBuiltInAnimation()">▶ Ходьба (встроенная)</button>
+    <button onclick="playExternalAnimation('arm.glb')">👋 Махание</button>
+    <button onclick="playExternalAnimation('pointing.glb')">👉 Указание</button>
+  </div>
 
-  <body>
-    <div id="menu">
-      <h3>Анимации</h3>
-      <button onclick="playBuiltInAnimation()">▶ Ходьба (встроенная)</button>
-      <button onclick="playExternalAnimation('arm.glb')">👋 Махание</button>
-      <button onclick="playExternalAnimation('pointing.glb')">👉 Указание</button>
-    </div>
+  <a-scene>
+    <a-assets>
+      <a-asset-item id="walkman" src="assets/walk_man.glb"></a-asset-item>
+    </a-assets>
 
-    <a-scene>
-      <a-assets>
-        <a-asset-item id="walkman" src="assets/walk_man.glb"></a-asset-item>
-      </a-assets>
+    <a-entity id="avatar"
+              gltf-model="#walkman"
+              position="0 0 -2"
+              scale="1 1 1"
+              my-anim></a-entity>
 
-      <a-entity id="avatar"
-                gltf-model="#walkman"
-                position="0 0 -2"
-                scale="1 1 1"
-                my-anim></a-entity>
+    <a-light type="ambient" intensity="1.2"></a-light>
+    <a-light type="directional" intensity="0.6" position="1 2 1"></a-light>
+    <a-camera position="0 1.6 2"></a-camera>
+  </a-scene>
 
-      <a-light type="ambient" intensity="1.2"></a-light>
-      <a-light type="directional" intensity="0.6" position="1 2 1"></a-light>
-      <a-camera position="0 1.6 2"></a-camera>
-    </a-scene>
+  <script>
+    let mixer = null;
+    let model = null;
+    let skeleton = null;
+    let currentAction = null;
+    const actions = {};
+    const loader = new THREE.GLTFLoader();
 
-    <script>
-      let mixer = null;
-      let model = null;
-      let currentAction = null;
-      const actions = {};
-      const loader = new AFRAME.THREE.GLTFLoader(); // Используем GLTFLoader из A-Frame
+    AFRAME.registerComponent('my-anim', {
+      init: function () {
+        this.el.addEventListener('model-loaded', () => {
+          model = this.el.getObject3D('mesh');
+          const gltf = this.el.components['gltf-model'].model;
 
-      AFRAME.registerComponent('my-anim', {
-        init: function () {
-          this.el.addEventListener('model-loaded', () => {
-            model = this.el.getObject3D('mesh');
-            const gltfModel = this.el.components['gltf-model'].model;
+          mixer = new THREE.AnimationMixer(model);
 
-            mixer = new THREE.AnimationMixer(model);
-
-            console.log('Анимации в модели:', gltfModel.animations); // Отладка
-            if (gltfModel.animations.length === 0) {
-              console.warn('Анимации отсутствуют в модели walk_man.glb');
-              return;
+          model.traverse(obj => {
+            if (obj.isSkinnedMesh && obj.skeleton) {
+              skeleton = obj.skeleton;
             }
-
-            gltfModel.animations.forEach(clip => {
-              actions[clip.name] = mixer.clipAction(clip, model);
-              console.log('Доступная встроенная анимация:', clip.name);
-            });
-
-            playBuiltInAnimation();
           });
-        },
-        tick: function (_, delta) {
-          if (mixer) mixer.update(delta / 1000);
-        }
-      });
 
-      function playBuiltInAnimation() {
-        if (!actions || Object.keys(actions).length === 0) {
-          console.warn("Встроенные анимации не загружены.");
-          return;
-        }
+          gltf.animations.forEach(clip => {
+            actions[clip.name] = mixer.clipAction(clip, model);
+            console.log('Зарегистрирована встроенная анимация:', clip.name);
+          });
 
-        const clipName = Object.keys(actions)[0]; // первая анимация
-        if (currentAction) currentAction.fadeOut(0.3);
-        currentAction = actions[clipName];
-        currentAction.reset().fadeIn(0.3).play();
-        console.log("▶ Воспроизведена встроенная:", clipName);
-      }
-
-      function playExternalAnimation(file) {
-        if (!model || !mixer) return alert("Модель ещё не готова.");
-
-        loader.load(`assets/${file}`, (gltf) => {
-          const clip = gltf.animations[0];
-          if (!clip) return alert("Нет анимации в " + file);
-
-          const action = mixer.clipAction(clip, model);
-
-          if (currentAction) currentAction.fadeOut(0.3);
-          currentAction = action;
-          action.reset().fadeIn(0.3).play();
-
-          console.log(`▶ Воспроизведена внешняя анимация из ${file}`);
-        }, undefined, (err) => {
-          console.error("Ошибка загрузки анимации:", err);
-          alert("Ошибка загрузки файла: " + file);
+          playBuiltInAnimation();
         });
+      },
+      tick: function (_, delta) {
+        if (mixer) mixer.update(delta / 1000);
       }
-    </script>
-  </body>
+    });
+
+    function playBuiltInAnimation() {
+      const clipName = Object.keys(actions)[0];
+      if (!clipName) return alert("Нет встроенных анимаций");
+
+      if (currentAction) currentAction.fadeOut(0.3);
+      currentAction = actions[clipName];
+      currentAction.reset().fadeIn(0.3).play();
+      console.log("▶ Воспроизведена встроенная:", clipName);
+    }
+
+    function playExternalAnimation(file) {
+      if (!model || !mixer || !skeleton) {
+        return alert("Модель ещё не готова");
+      }
+
+      loader.load(`assets/${file}`, (gltf) => {
+        if (!gltf.animations || gltf.animations.length === 0) {
+          return alert("Анимация не найдена в " + file);
+        }
+
+        const clip = gltf.animations[0];
+        const action = mixer.clipAction(clip);
+        action._clip = clip; // на всякий случай
+
+        // Привязываем animation clip к скелету
+        clip.tracks.forEach(track => {
+          if (track.name.includes('mixamorig')) {
+            track.name = track.name.replace(/.*?mixamorig/, `Armature|mixamorig`);
+          }
+        });
+
+        if (currentAction) currentAction.fadeOut(0.3);
+        currentAction = action;
+        action.reset().fadeIn(0.3).play();
+        console.log(`▶ Воспроизведена анимация из ${file}`);
+      }, undefined, (error) => {
+        console.error("Ошибка загрузки:", error);
+        alert("Ошибка загрузки " + file);
+      });
+    }
+  </script>
+</body>
 </html>
