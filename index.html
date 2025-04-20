@@ -1,9 +1,46 @@
-<a-scene>
-  <a-assets>
-    <a-asset-item id="model" src="assets/walk_man.glb"></a-asset-item>
-  </a-assets>
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Walk Man Model</title>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+    <style>
+      body {
+        margin: 0;
+        font-family: sans-serif;
+      }
+      #info {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(255, 255, 255, 0.85);
+        padding: 10px 15px;
+        border-radius: 8px;
+        z-index: 999;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="info">
+      <strong>Модель:</strong> walk_man.glb<br />
+      <strong>Путь:</strong> assets/walk_man.glb
+    </div>
 
-  <a-entity gltf-model="#model" animation-mixer position="0 0 -2"></a-entity>
-  <a-light type="ambient" intensity="1.2"></a-light>
-  <a-camera position="0 1.6 0"></a-camera>
-</a-scene>
+    <a-scene background="color: #ECECEC">
+      <a-assets>
+        <a-asset-item id="walkmanModel" src="assets/walk_man.glb"></a-asset-item>
+      </a-assets>
+
+      <a-entity gltf-model="#walkmanModel"
+                animation-mixer
+                position="0 0 -2"
+                scale="1 1 1">
+      </a-entity>
+
+      <a-light type="ambient" intensity="1.2"></a-light>
+      <a-light type="directional" intensity="0.6" position="1 2 1"></a-light>
+      <a-camera position="0 1.6 2"></a-camera>
+    </a-scene>
+  </body>
+</html>
