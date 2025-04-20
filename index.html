@@ -2,33 +2,38 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>WebXR Avatar with Animations</title>
+    <title>WebXR Avatar</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
     <style>
-  #menu {
-    position: absolute;
-    top: 10px;
-    left: 10px;
-    z-index: 10; /* Важно! поверх сцены */
-    background: rgba(255, 255, 255, 0.9);
-    padding: 12px;
-    border-radius: 8px;
-    font-family: sans-serif;
-  }
-  button {
-    margin: 5px;
-    padding: 8px 12px;
-    cursor: pointer;
-  }
-</style>
+      .menu {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 10px 15px;
+        border-radius: 10px;
+        font-family: sans-serif;
+        z-index: 999;
+      }
 
+      .menu h3 {
+        margin: 0 0 10px;
+      }
+
+      .menu button {
+        display: block;
+        margin: 5px 0;
+        padding: 5px 10px;
+        cursor: pointer;
+      }
+    </style>
   </head>
   <body>
-    <div id="menu">
-      <h3>Выбери анимацию:</h3>
-      <button onclick="switchModel('walkman')">🚶 Ходьба</button>
-      <button onclick="switchModel('arm')">👋 Махать рукой</button>
-      <button onclick="switchModel('pointing')">👉 Указывать</button>
+    <div class="menu">
+      <h3>Анимации</h3>
+      <button onclick="showModel('walkman')">🚶 Ходьба</button>
+      <button onclick="showModel('arm')">👋 Махание рукой</button>
+      <button onclick="showModel('pointing')">👉 Указание</button>
     </div>
 
     <a-scene>
@@ -38,7 +43,10 @@
         <a-asset-item id="pointingModel" src="assets/pointing.glb"></a-asset-item>
       </a-assets>
 
-      <a-entity id="avatar" gltf-model="#walkmanModel" position="0 0 -2" scale="1 1 1"></a-entity>
+      <!-- Все три модели, показывается только одна -->
+      <a-entity id="walkman" gltf-model="#walkmanModel" position="0 0 -2" scale="1 1 1" visible="true"></a-entity>
+      <a-entity id="arm" gltf-model="#armModel" position="0 0 -2" scale="1 1 1" visible="false"></a-entity>
+      <a-entity id="pointing" gltf-model="#pointingModel" position="0 0 -2" scale="1 1 1" visible="false"></a-entity>
 
       <a-sky color="#ECECEC"></a-sky>
       <a-light type="ambient" intensity="1.2"></a-light>
@@ -46,14 +54,11 @@
     </a-scene>
 
     <script>
-      function switchModel(animation) {
-        const avatar = document.getElementById('avatar');
-        const modelMap = {
-          walkman: '#walkmanModel',
-          arm: '#armModel',
-          pointing: '#pointingModel'
-        };
-        avatar.setAttribute('gltf-model', modelMap[animation]);
+      function showModel(idToShow) {
+        ['walkman', 'arm', 'pointing'].forEach(id => {
+          const el = document.getElementById(id);
+          el.setAttribute('visible', id === idToShow);
+        });
       }
     </script>
   </body>
