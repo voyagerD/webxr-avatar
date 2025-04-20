@@ -2,11 +2,12 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>WebXR Avatar</title>
+    <title>WebXR Avatar with Three.js Animation</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/GLTFLoader.js"></script>
     <style>
-      .menu {
+      #menu {
         position: absolute;
         top: 20px;
         left: 20px;
@@ -16,36 +17,30 @@
         font-family: sans-serif;
         z-index: 999;
       }
-      .menu h3 {
-        margin: 0 0 10px;
-      }
-      .menu button {
+      button {
         display: block;
         margin: 5px 0;
-        padding: 5px 10px;
+        padding: 8px 12px;
+        font-size: 14px;
         cursor: pointer;
       }
     </style>
   </head>
+
   <body>
-    <div class="menu">
+    <div id="menu">
       <h3>Анимации</h3>
-      <button onclick="showModel('walkman')">🚶 Ходьба</button>
-      <button onclick="showModel('arm')">👋 Махание</button>
-      <button onclick="showModel('pointing')">👉 Указание</button>
+      <button onclick="playClip('walk')">🚶 Ходьба (из модели)</button>
+      <button onclick="playClipFromGLB('pointing.glb')">👉 Указание</button>
+      <button onclick="playClipFromGLB('arm.glb')">👋 Махание</button>
     </div>
 
     <a-scene>
       <a-assets>
         <a-asset-item id="walkmanModel" src="assets/walkman.glb"></a-asset-item>
-        <a-asset-item id="armModel" src="assets/arm.glb"></a-asset-item>
-        <a-asset-item id="pointingModel" src="assets/pointing.glb"></a-asset-item>
       </a-assets>
 
-      <!-- Модели с animation-mixer -->
-      <a-entity id="walkman" gltf-model="#walkmanModel" animation-mixer position="0 0 -2" visible="true"></a-entity>
-      <a-entity id="arm" gltf-model="#armModel" animation-mixer position="0 0 -2" visible="false"></a-entity>
-      <a-entity id="pointing" gltf-model="#pointingModel" animation-mixer position="0 0 -2" visible="false"></a-entity>
+      <a-entity id="avatar" gltf-model="#walkmanModel" position="0 0 -2" scale="1 1 1" my-animation></a-entity>
 
       <a-sky color="#ECECEC"></a-sky>
       <a-light type="ambient" intensity="1.2"></a-light>
@@ -53,27 +48,63 @@
     </a-scene>
 
     <script>
-      function showModel(idToShow) {
-        const ids = ['walkman', 'arm', 'pointing'];
-        ids.forEach(id => {
-          const el = document.getElementById(id);
-          const visible = id === idToShow;
-          el.setAttribute('visible', visible);
+      let mixer, model, currentAction;
+      const actions = {};
+      const loader = new THREE.GLTFLoader();
 
-          // перезапускаем анимацию
-          if (visible) {
-            el.setAttribute('animation-mixer', {
-              clip: '*',   // можно указать конкретное имя анимации
-              loop: 'repeat',
-              timeScale: 1
+      AFRAME.registerComponent("my-animation", {
+        init: function () {
+          this.el.addEventListener("model-loaded", () => {
+            model = this.el.getObject3D("mesh");
+            mixer = new THREE.AnimationMixer(model);
+
+            // встроенные клипы из walkman.glb
+            const clips = model.animations || this.el.components["gltf-model"].model.animations;
+            clips.forEach((clip) => {
+              actions[clip.name] = mixer.clipAction(clip);
             });
-          } else {
-            el.removeAttribute('animation-mixer');
+
+            // Автостарт: ходьба
+            playClip("walk");
+          });
+        },
+        tick: function (time, delta) {
+          if (mixer) mixer.update(delta / 1000);
+        }
+      });
+
+      function playClip(name) {
+        if (!actions[name]) {
+          alert(`Анимация "${name}" не найдена.`);
+          return;
+        }
+
+        if (currentAction) {
+          currentAction.fadeOut(0.3);
+        }
+
+        currentAction = actions[name];
+        currentAction.reset().fadeIn(0.3).play();
+      }
+
+      function playClipFromGLB(filename) {
+        if (!model || !mixer) return;
+
+        loader.load(`assets/${filename}`, (gltf) => {
+          const clip = gltf.animations[0]; // первая анимация
+          const action = mixer.clipAction(clip);
+
+          if (currentAction) {
+            currentAction.fadeOut(0.3);
           }
+
+          currentAction = action;
+          action.reset().fadeIn(0.3).play();
         });
       }
     </script>
   </body>
 </html>
+
 
 
