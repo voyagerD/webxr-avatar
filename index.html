@@ -2,7 +2,7 @@
 <html lang="ru">
   <head>
     <meta charset="utf-8" />
-    <title>3D Анимации персонажа</title>
+    <title>Анимации персонажа</title>
     <script src="https://aframe.io/releases/1.6.0/aframe.min.js"></script>
 
     <style>
@@ -44,6 +44,7 @@
                 gltf-model="#walkman"
                 position="0 0 -2"
                 scale="1 1 1"
+                visible="true"
                 my-anim></a-entity>
 
       <a-light type="ambient" intensity="1.2"></a-light>
@@ -60,11 +61,23 @@
 
       AFRAME.registerComponent('my-anim', {
         init: function () {
-          this.el.addEventListener('model-loaded', () => {
+          console.log('Компонент my-anim инициализирован');
+          this.el.addEventListener('model-loaded', (e) => {
+            console.log('Модель загружена:', e.detail.model);
             model = this.el.getObject3D('mesh');
+            if (!model) {
+              console.error('Модель не найдена в сцене');
+              return;
+            }
+
             const gltfModel = this.el.components['gltf-model'].model;
+            if (!gltfModel) {
+              console.error('gltf-model не доступен');
+              return;
+            }
 
             mixer = new THREE.AnimationMixer(model);
+            console.log('AnimationMixer создан');
 
             console.log('Анимации в модели:', gltfModel.animations);
             if (gltfModel.animations.length === 0) {
@@ -79,6 +92,10 @@
 
             playBuiltInAnimation();
           });
+
+          this.el.addEventListener('model-error', (e) => {
+            console.error('Ошибка загрузки модели:', e.detail);
+          });
         },
         tick: function (_, delta) {
           if (mixer) mixer.update(delta / 1000);
@@ -91,9 +108,9 @@
           return;
         }
 
-        const clipName = Object.keys(actions)[0]; // первая анимация
+        const clipName = Object.keys(actions)[0];
         if (currentAction) {
-          currentAction.stop(); // Полностью останавливаем предыдущую анимацию
+          currentAction.stop();
         }
         currentAction = actions[clipName];
         currentAction.reset().play();
@@ -107,9 +124,8 @@
           const clip = gltf.animations[0];
           if (!clip) return alert("Нет анимации в " + file);
 
-          console.log(`Загружена анимация из ${file}:`, clip); // Отладка
+          console.log(`Загружена анимация из ${file}:`, clip);
 
-          // Проверяем, можно ли применить анимацию к модели
           const action = mixer.clipAction(clip, model);
           if (!action) {
             console.error(`Не удалось создать действие для анимации из ${file}`);
@@ -117,7 +133,7 @@
           }
 
           if (currentAction) {
-            currentAction.stop(); // Полностью останавливаем предыдущую анимацию
+            currentAction.stop();
           }
           currentAction = action;
           currentAction.reset().play();
