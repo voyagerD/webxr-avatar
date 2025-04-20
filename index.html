@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <title>WebXR Avatar</title>
     <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/aframe-extras@6.1.1/dist/aframe-extras.min.js"></script>
     <style>
       .menu {
         position: absolute;
@@ -15,11 +16,9 @@
         font-family: sans-serif;
         z-index: 999;
       }
-
       .menu h3 {
         margin: 0 0 10px;
       }
-
       .menu button {
         display: block;
         margin: 5px 0;
@@ -32,7 +31,7 @@
     <div class="menu">
       <h3>Анимации</h3>
       <button onclick="showModel('walkman')">🚶 Ходьба</button>
-      <button onclick="showModel('arm')">👋 Махание рукой</button>
+      <button onclick="showModel('arm')">👋 Махание</button>
       <button onclick="showModel('pointing')">👉 Указание</button>
     </div>
 
@@ -43,10 +42,10 @@
         <a-asset-item id="pointingModel" src="assets/pointing.glb"></a-asset-item>
       </a-assets>
 
-      <!-- Все три модели, показывается только одна -->
-      <a-entity id="walkman" gltf-model="#walkmanModel" position="0 0 -2" scale="1 1 1" visible="true"></a-entity>
-      <a-entity id="arm" gltf-model="#armModel" position="0 0 -2" scale="1 1 1" visible="false"></a-entity>
-      <a-entity id="pointing" gltf-model="#pointingModel" position="0 0 -2" scale="1 1 1" visible="false"></a-entity>
+      <!-- Модели с animation-mixer -->
+      <a-entity id="walkman" gltf-model="#walkmanModel" animation-mixer position="0 0 -2" visible="true"></a-entity>
+      <a-entity id="arm" gltf-model="#armModel" animation-mixer position="0 0 -2" visible="false"></a-entity>
+      <a-entity id="pointing" gltf-model="#pointingModel" animation-mixer position="0 0 -2" visible="false"></a-entity>
 
       <a-sky color="#ECECEC"></a-sky>
       <a-light type="ambient" intensity="1.2"></a-light>
@@ -55,12 +54,26 @@
 
     <script>
       function showModel(idToShow) {
-        ['walkman', 'arm', 'pointing'].forEach(id => {
+        const ids = ['walkman', 'arm', 'pointing'];
+        ids.forEach(id => {
           const el = document.getElementById(id);
-          el.setAttribute('visible', id === idToShow);
+          const visible = id === idToShow;
+          el.setAttribute('visible', visible);
+
+          // перезапускаем анимацию
+          if (visible) {
+            el.setAttribute('animation-mixer', {
+              clip: '*',   // можно указать конкретное имя анимации
+              loop: 'repeat',
+              timeScale: 1
+            });
+          } else {
+            el.removeAttribute('animation-mixer');
+          }
         });
       }
     </script>
   </body>
 </html>
+
 
