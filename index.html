@@ -38,10 +38,10 @@
 </head>
 <body>
   <div id="ui">
-    <h2>Анимации персонажа</h2>
+    <h2>Управление анимациями</h2>
     <button onclick="playAnimation('walk')">🚶 Ходьба</button>
-    <button onclick="loadAnimation('pointing.glb')">👉 Указание</button>
-    <button onclick="loadAnimation('arm.glb')">👋 Махание</button>
+    <button onclick="loadAndReplaceAnimation('pointing.glb')">👉 Указание</button>
+    <button onclick="loadAndReplaceAnimation('arm.glb')">👋 Махание</button>
     <div id="status">Загрузка основной модели...</div>
   </div>
 
@@ -53,8 +53,7 @@
     <a-entity id="character" 
               gltf-model="#main-model"
               position="0 0 -3"
-              scale="1 1 1"
-              animation-mixer="clip: walk">
+              scale="1 1 1">
     </a-entity>
 
     <a-light type="ambient" intensity="1.2"></a-light>
@@ -65,9 +64,9 @@
 
   <script>
     // Глобальные переменные
-    let mixer, model, currentAction;
+    let mixer, model;
     const loader = new THREE.GLTFLoader();
-    const animationMap = {};
+    const animationClips = {};
 
     // Инициализация сцены
     document.querySelector('a-scene').addEventListener('loaded', () => {
@@ -80,33 +79,35 @@
         // Инициализация системы анимаций
         mixer = new THREE.AnimationMixer(model);
         
-        // Автоматическое воспроизведение анимации по умолчанию
+        // Сохраняем оригинальные анимации модели
         if (gltf.animations?.length > 0) {
-          animationMap['walk'] = gltf.animations[0]; // Сохраняем анимацию
-          playAnimation('walk');
+          animationClips['walk'] = gltf.animations[0];
           updateStatus('Модель загружена. Готово к работе');
+          playAnimation('walk');
         } else {
           updateStatus('Внимание: модель не содержит анимаций');
         }
       });
     });
 
-    // Воспроизведение встроенной анимации
+    // Воспроизведение анимации
     function playAnimation(name) {
-      if (!mixer || !animationMap[name]) {
+      if (!mixer || !animationClips[name]) {
         console.error(`Анимация "${name}" не найдена`);
         return;
       }
       
-      if (currentAction) currentAction.stop();
+      // Останавливаем все текущие анимации
+      mixer.stopAllAction();
       
-      currentAction = mixer.clipAction(animationMap[name]);
-      currentAction.reset().play();
+      // Создаем и воспроизводим новую анимацию
+      const action = mixer.clipAction(animationClips[name]);
+      action.reset().play();
       updateStatus(`Воспроизводится: ${name}`);
     }
 
-    // Загрузка внешней анимации с ремаппингом
-    function loadAnimation(filename) {
+    // Полная перезапись анимаций модели
+    function loadAndReplaceAnimation(filename) {
       updateStatus(`Загрузка ${filename}...`);
       
       loader.load(`assets/${filename}`, (gltf) => {
@@ -115,67 +116,24 @@
           return;
         }
         
-        // 1. Получаем иерархию скелета основной модели
-        const mainSkeleton = findMainSkeleton(model);
-        
-        if (!mainSkeleton) {
-          updateStatus('Ошибка: не найден скелет модели');
-          return;
-        }
-        
-        // 2. Применяем ремаппинг анимации
-        const remappedClip = remapAnimation(
-          gltf.animations[0], 
-          mainSkeleton
-        );
-        
-        // 3. Сохраняем и воспроизводим
+        // Полностью заменяем анимации модели
+        const clip = gltf.animations[0];
         const actionName = filename.replace('.glb', '');
-        animationMap[actionName] = remappedClip;
+        
+        // 1. Очищаем старые анимации
+        mixer.uncacheRoot(model);
+        
+        // 2. Подменяем анимации модели
+        model.animations = [clip];
+        animationClips[actionName] = clip;
+        
+        // 3. Воспроизводим новую анимацию
         playAnimation(actionName);
         
       }, undefined, (error) => {
         console.error('Ошибка загрузки:', error);
         updateStatus(`Ошибка загрузки ${filename}`);
       });
-    }
-
-    // Поиск скелета в модели
-    function findMainSkeleton(model) {
-      let skeleton = null;
-      model.traverse((node) => {
-        if (node.isSkinnedMesh && !skeleton) {
-          skeleton = node.skeleton;
-        }
-      });
-      return skeleton;
-    }
-
-    // Ремаппинг анимации под скелет модели
-    function remapAnimation(clip, targetSkeleton) {
-      // Создаем новый клип с правильной привязкой
-      const tracks = [];
-      const boneMap = {};
-      
-      // Строим карту костей
-      targetSkeleton.bones.forEach(bone => {
-        boneMap[bone.name] = bone;
-      });
-      
-      // Обрабатываем все треки анимации
-      clip.tracks.forEach(track => {
-        const boneName = track.name.split('.')[0];
-        if (boneMap[boneName]) {
-          tracks.push(track);
-        }
-      });
-      
-      // Возвращаем новый клип
-      return new THREE.AnimationClip(
-        clip.name, 
-        clip.duration, 
-        tracks
-      );
     }
 
     // Обновление статуса
