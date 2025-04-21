@@ -2,51 +2,45 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <title>Starry Scene with 3D Character</title>
+  <title>3D Персонаж на зелёном поле</title>
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
   <style>
-    body { margin: 0; overflow: hidden; background: #000; }
+    body { margin: 0; overflow: hidden; }
     #ui {
       position: absolute;
       top: 20px;
       left: 20px;
-      background: rgba(0,0,0,0.7);
+      background: rgba(255,255,255,0.9);
       padding: 15px;
       border-radius: 10px;
       font-family: Arial, sans-serif;
       z-index: 1000;
-      color: white;
-      border: 1px solid #555;
     }
     button {
       display: block;
       margin: 8px 0;
       padding: 10px 15px;
-      background: #3a3a3a;
+      background: #4CAF50;
       color: white;
       border: none;
       border-radius: 5px;
       cursor: pointer;
       font-size: 14px;
-      transition: all 0.2s;
-    }
-    button:hover { 
-      background: #555;
     }
     #status {
       margin-top: 15px;
-      color: #ccc;
+      color: #666;
       font-size: 13px;
     }
   </style>
 </head>
 <body>
   <div id="ui">
-    <h2 style="margin-top: 0;">Анимации персонажа</h2>
-    <button onclick="playAnimation('walk')">🚶 Ходьба</button>
-    <button onclick="playAnimation('waving')">👋 Махание</button>
-    <button onclick="playAnimation('jump')">🦘 Прыжки</button>
-    <div id="status">Загрузка звёздной сцены...</div>
+    <h2 style="margin-top: 0;">Управление анимациями</h2>
+    <button onclick="playAnimation('walk')"> Ходьба</button>
+    <button onclick="playAnimation('waving')"> Помахать рукой</button>
+    <button onclick="playAnimation('jump')">Прыжки</button>
+    <div id="status">Загрузка модели...</div>
   </div>
 
   <a-scene>
@@ -56,64 +50,29 @@
       <a-asset-item id="jump-anim" src="assets/jump.glb"></a-asset-item>
     </a-assets>
 
-    <!-- Звёздное небо (оптимизированное) -->
-    <a-entity id="stars" geometry="primitive: sphere; radius: 100" 
-              material="shader: flat; color: black; transparent: true; opacity: 0.8"
-              scale="-1 1 1">
-      <a-entity geometry="primitive: plane; width: 200; height: 200"
-                material="src: #star-texture; transparent: true"
-                position="0 0 0" rotation="0 0 0"></a-entity>
-    </a-entity>
+    <!-- Зеленый пол -->
+    <a-entity geometry="primitive: plane; width: 20; height: 20" 
+              rotation="-90 0 0"
+              material="color: #4CAF50"
+              position="0 0 0"></a-entity>
 
     <!-- Персонаж -->
     <a-entity id="character" 
               gltf-model="#main-model"
-              position="0 0 -5"
+              position="0 0 -3"
               scale="1 1 1"
               animation-mixer="clip: walk">
     </a-entity>
 
     <!-- Освещение -->
-    <a-light type="directional" color="#ffffff" intensity="0.8" position="-1 1 1"></a-light>
-    <a-light type="ambient" color="#333333" intensity="0.5"></a-light>
+    <a-light type="ambient" color="#FFFFFF" intensity="0.8"></a-light>
+    <a-light type="directional" color="#FFFFFF" intensity="0.8" position="-1 2 1"></a-light>
 
     <!-- Камера -->
-    <a-camera position="0 1.6 8" look-controls wasd-controls>
-      <a-cursor color="white"></a-cursor>
-    </a-camera>
+    <a-camera position="0 1.6 5" look-controls wasd-controls></a-camera>
   </a-scene>
 
   <script>
-    // Создаем текстуру звёзд на лету
-    const starCanvas = document.createElement('canvas');
-    starCanvas.width = 2048;
-    starCanvas.height = 2048;
-    const ctx = starCanvas.getContext('2d');
-    
-    // Рисуем звёзды
-    ctx.fillStyle = 'black';
-    ctx.fillRect(0, 0, starCanvas.width, starCanvas.height);
-    
-    // 2000 случайных звёзд
-    for(let i = 0; i < 2000; i++) {
-      const x = Math.random() * starCanvas.width;
-      const y = Math.random() * starCanvas.height;
-      const radius = Math.random() * 1.5;
-      const opacity = Math.random();
-      
-      ctx.beginPath();
-      ctx.arc(x, y, radius, 0, Math.PI * 2);
-      ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
-      ctx.fill();
-    }
-    
-    // Создаем текстуру из canvas
-    const starTexture = new THREE.CanvasTexture(starCanvas);
-    starTexture.needsUpdate = true;
-    
-    // Добавляем текстуру в сцену
-    AFRAME.scenes[0].systems.material.registerTexture('star-texture', starTexture);
-
     // Глобальные переменные
     let mixer, model;
     const animationClips = {};
@@ -133,7 +92,7 @@
         // Загрузка основной анимации
         if (gltf.animations?.length > 0) {
           animationClips['walk'] = gltf.animations[0];
-          updateStatus('Сцена готова. Выберите анимацию');
+          updateStatus('Модель загружена. Готово к работе');
           loadAdditionalAnimations();
         } else {
           updateStatus('Внимание: модель не содержит анимаций');
@@ -176,11 +135,7 @@
       
       mixer.stopAllAction();
       const action = mixer.clipAction(animationClips[name]);
-      action.reset()
-        .setEffectiveTimeScale(1.0)
-        .setEffectiveWeight(1.0)
-        .fadeIn(0.3)
-        .play();
+      action.reset().fadeIn(0.3).play();
       
       updateStatus(`Воспроизводится: ${name}`);
     }
