@@ -2,132 +2,204 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <title>Персонаж с анимациями</title>
+  <title>Starry Scene with 3D Character</title>
   <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.min.js"></script>
   <style>
-    body { margin: 0; overflow: hidden; }
+    body { margin: 0; overflow: hidden; background: #000; }
     #ui {
       position: absolute;
       top: 20px;
       left: 20px;
-      background: rgba(255,255,255,0.95);
+      background: rgba(0,0,0,0.7);
       padding: 15px;
       border-radius: 10px;
       font-family: Arial, sans-serif;
       z-index: 1000;
+      color: white;
+      border: 1px solid #555;
     }
     button {
       display: block;
-      margin: 5px 0;
+      margin: 8px 0;
       padding: 10px 15px;
-      background: #5a8eff;
+      background: #3a3a3a;
       color: white;
       border: none;
       border-radius: 5px;
       cursor: pointer;
       font-size: 14px;
+      transition: all 0.2s;
+    }
+    button:hover { 
+      background: #555;
     }
     #status {
-      margin-top: 10px;
+      margin-top: 15px;
+      color: #ccc;
       font-size: 13px;
-      color: #555;
     }
   </style>
 </head>
 <body>
   <div id="ui">
-    <h3>Управление анимациями</h3>
+    <h2 style="margin-top: 0;">Анимации персонажа</h2>
     <button onclick="playAnimation('walk')">🚶 Ходьба</button>
     <button onclick="playAnimation('waving')">👋 Махание</button>
-    <button onclick="playAnimation('jump')">🦘 Прыжок</button>
-    <div id="status">Загрузка модели...</div>
+    <button onclick="playAnimation('jump')">🦘 Прыжки</button>
+    <div id="status">Загрузка звёздной сцены...</div>
   </div>
 
-  <a-scene background="color: black">
+  <a-scene>
     <a-assets>
-      <a-asset-item id="mainModel" src="assets/walk_man.glb"></a-asset-item>
-      <a-asset-item id="wavingAnim" src="assets/waving.glb"></a-asset-item>
-      <a-asset-item id="jumpAnim" src="assets/jump.glb"></a-asset-item>
-      <img id="starry-sky" src="https://cdn.aframe.io/360-image-gallery-boilerplate/img/sechelt.jpg" crossorigin="anonymous">
+      <a-asset-item id="main-model" src="assets/walk_man.glb"></a-asset-item>
+      <a-asset-item id="waving-anim" src="assets/waving.glb"></a-asset-item>
+      <a-asset-item id="jump-anim" src="assets/jump.glb"></a-asset-item>
     </a-assets>
 
-    <!-- Сфера неба -->
-    <a-sky src="#starry-sky" rotation="0 -90 0"></a-sky>
+    <!-- Звёздное небо (оптимизированное) -->
+    <a-entity id="stars" geometry="primitive: sphere; radius: 100" 
+              material="shader: flat; color: black; transparent: true; opacity: 0.8"
+              scale="-1 1 1">
+      <a-entity geometry="primitive: plane; width: 200; height: 200"
+                material="src: #star-texture; transparent: true"
+                position="0 0 0" rotation="0 0 0"></a-entity>
+    </a-entity>
 
-    <!-- Модель -->
-    <a-entity id="character"
-              gltf-model="#mainModel"
-              position="0 0 -3"
+    <!-- Персонаж -->
+    <a-entity id="character" 
+              gltf-model="#main-model"
+              position="0 0 -5"
               scale="1 1 1"
-              my-animation></a-entity>
+              animation-mixer="clip: walk">
+    </a-entity>
 
-    <!-- Свет -->
-    <a-light type="ambient" intensity="1.0"></a-light>
-    <a-light type="directional" intensity="0.6" position="-1 2 1"></a-light>
+    <!-- Освещение -->
+    <a-light type="directional" color="#ffffff" intensity="0.8" position="-1 1 1"></a-light>
+    <a-light type="ambient" color="#333333" intensity="0.5"></a-light>
 
     <!-- Камера -->
-    <a-camera position="0 1.6 3"></a-camera>
+    <a-camera position="0 1.6 8" look-controls wasd-controls>
+      <a-cursor color="white"></a-cursor>
+    </a-camera>
   </a-scene>
 
   <script>
+    // Создаем текстуру звёзд на лету
+    const starCanvas = document.createElement('canvas');
+    starCanvas.width = 2048;
+    starCanvas.height = 2048;
+    const ctx = starCanvas.getContext('2d');
+    
+    // Рисуем звёзды
+    ctx.fillStyle = 'black';
+    ctx.fillRect(0, 0, starCanvas.width, starCanvas.height);
+    
+    // 2000 случайных звёзд
+    for(let i = 0; i < 2000; i++) {
+      const x = Math.random() * starCanvas.width;
+      const y = Math.random() * starCanvas.height;
+      const radius = Math.random() * 1.5;
+      const opacity = Math.random();
+      
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+      ctx.fill();
+    }
+    
+    // Создаем текстуру из canvas
+    const starTexture = new THREE.CanvasTexture(starCanvas);
+    starTexture.needsUpdate = true;
+    
+    // Добавляем текстуру в сцену
+    AFRAME.scenes[0].systems.material.registerTexture('star-texture', starTexture);
+
+    // Глобальные переменные
     let mixer, model;
-    const animations = {};
+    const animationClips = {};
     const loader = new THREE.GLTFLoader();
 
-    AFRAME.registerComponent('my-animation', {
-      init: function () {
-        const el = this.el;
-        el.addEventListener('model-loaded', () => {
-          model = el.getObject3D('mesh');
-          const gltf = el.components['gltf-model'].model;
-
-          mixer = new THREE.AnimationMixer(model);
-
-          if (gltf.animations.length > 0) {
-            animations['walk'] = gltf.animations[0];
-            updateStatus('Модель загружена. Выберите анимацию.');
-            loadExternalAnimations();
-          } else {
-            updateStatus('В модели нет встроенных анимаций.');
-          }
-        });
-      },
-      tick: function (_, delta) {
-        if (mixer) mixer.update(delta / 1000);
-      }
+    // Инициализация сцены
+    document.querySelector('a-scene').addEventListener('loaded', () => {
+      const character = document.getElementById('character');
+      
+      character.addEventListener('model-loaded', () => {
+        model = character.object3D;
+        const gltf = character.components['gltf-model'].model;
+        
+        // Инициализация системы анимаций
+        mixer = new THREE.AnimationMixer(model);
+        
+        // Загрузка основной анимации
+        if (gltf.animations?.length > 0) {
+          animationClips['walk'] = gltf.animations[0];
+          updateStatus('Сцена готова. Выберите анимацию');
+          loadAdditionalAnimations();
+        } else {
+          updateStatus('Внимание: модель не содержит анимаций');
+        }
+      });
     });
 
-    function loadExternalAnimations() {
-      loader.load('assets/waving.glb', (gltf) => {
-        if (gltf.animations[0]) {
-          animations['waving'] = gltf.animations[0];
-        }
-      });
+    // Загрузка дополнительных анимаций
+    function loadAdditionalAnimations() {
+      // Анимация махания
+      loader.load(document.querySelector('#waving-anim').getAttribute('src'), 
+        (gltf) => {
+          if (gltf.animations?.length > 0) {
+            animationClips['waving'] = gltf.animations[0];
+          }
+        },
+        undefined,
+        (err) => console.error('Ошибка загрузки waving.glb:', err)
+      );
 
-      loader.load('assets/jump.glb', (gltf) => {
-        if (gltf.animations[0]) {
-          animations['jump'] = gltf.animations[0];
-        }
-      });
+      // Анимация прыжка
+      loader.load(document.querySelector('#jump-anim').getAttribute('src'), 
+        (gltf) => {
+          if (gltf.animations?.length > 0) {
+            animationClips['jump'] = gltf.animations[0];
+          }
+        },
+        undefined,
+        (err) => console.error('Ошибка загрузки jump.glb:', err)
+      );
     }
 
+    // Воспроизведение анимации
     function playAnimation(name) {
-      if (!mixer || !animations[name]) {
-        updateStatus(`Ошибка: анимация "${name}" не найдена`);
+      if (!mixer || !animationClips[name]) {
+        console.error(`Анимация "${name}" не найдена`);
+        updateStatus(`Ошибка: анимация "${name}" не загружена`);
         return;
       }
-
+      
       mixer.stopAllAction();
-      const action = mixer.clipAction(animations[name]);
-      action.reset().fadeIn(0.3).play();
-      updateStatus(`Анимация: ${name}`);
+      const action = mixer.clipAction(animationClips[name]);
+      action.reset()
+        .setEffectiveTimeScale(1.0)
+        .setEffectiveWeight(1.0)
+        .fadeIn(0.3)
+        .play();
+      
+      updateStatus(`Воспроизводится: ${name}`);
     }
 
-    function updateStatus(text) {
-      document.getElementById('status').textContent = text;
+    // Обновление статуса
+    function updateStatus(message) {
+      document.getElementById('status').textContent = message;
     }
+
+    // Цикл анимации
+    const scene = document.querySelector('a-scene');
+    scene.addEventListener('renderstart', () => {
+      const clock = new THREE.Clock();
+      function animate() {
+        requestAnimationFrame(animate);
+        if (mixer) mixer.update(clock.getDelta());
+      }
+      animate();
+    });
   </script>
 </body>
 </html>
