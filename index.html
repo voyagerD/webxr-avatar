@@ -1,236 +1,117 @@
 <!DOCTYPE html>
 <html lang="ru">
-<head>
-  <meta charset="utf-8">
-  <title>3D Персонаж на голубой сцене</title>
-  <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-  <style>
-    body { margin: 0; overflow: hidden; background: #f0f8ff; }
-    #ui {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      background: rgba(255,255,255,0.95);
-      padding: 15px;
-      border-radius: 10px;
-      font-family: Arial, sans-serif;
-      z-index: 1000;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    button {
-      display: block;
-      margin: 8px 0;
-      padding: 10px 15px;
-      background: #5a8eff;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: all 0.2s;
-    }
-    button:hover { 
-      background: #3d7aff;
-      transform: translateY(-2px);
-    }
-    #status {
-      margin-top: 15px;
-      color: #555;
-      font-size: 13px;
-    }
-  </style>
-</head>
-<body>
-  <div id="ui">
-    <h2 style="color: #333; margin-top: 0;">Управление анимациями</h2>
-    <button onclick="playAnimation('walk')">🚶 Ходьба</button>
-    <button onclick="playAnimation('waving')">👋 Махание</button>
-    <button onclick="playAnimation('jump')">🦘 Прыжки</button>
-    <div id="status">Загрузка модели...</div>
-  </div>
+  <head>
+    <meta charset="utf-8" />
+    <title>Персонаж Tron с анимацией</title>
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/aframe-environment-component@1.3.1/dist/aframe-environment-component.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.152.2/examples/js/loaders/GLTFLoader.js"></script>
+    <style>
+      body { margin: 0; }
+      #menu {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 10;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 10px;
+        border-radius: 8px;
+        font-family: sans-serif;
+      }
+      button {
+        display: block;
+        margin: 5px 0;
+        padding: 6px 10px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
 
-  <a-scene background="color: #e0f0ff">
-    <a-assets>
-      <a-asset-item id="main-model" src="assets/walk_man.glb"></a-asset-item>
-      <a-asset-item id="waving-anim" src="assets/waving.glb"></a-asset-item>
-      <a-asset-item id="jump-anim" src="assets/jump.glb"></a-asset-item>
-      
-      <!-- Текстура пола -->
-      <img id="floor-texture" src="https://cdn.aframe.io/a-painter/images/floor.jpg" crossorigin="anonymous">
-    </a-assets>
+  <body>
+    <div id="menu">
+      <h3>Анимации</h3>
+      <button onclick="playBuiltInAnimation()">▶ Ходьба (встроенная)</button>
+      <button onclick="playExternalAnimation('arm.glb')">👋 Махание</button>
+      <button onclick="playExternalAnimation('pointing.glb')">👉 Указание</button>
+    </div>
 
-    <!-- Основание сцены (голубой пол) -->
-    <a-entity geometry="primitive: plane; width: 20; height: 20" 
-              rotation="-90 0 0"
-              material="color: #b0d0ff; roughness: 0.1"
-              position="0 0 0"
-              static-body></a-entity>
+    <a-scene>
+      <a-assets>
+        <a-asset-item id="walkman" src="assets/walk_man.glb"></a-asset-item>
+      </a-assets>
 
-    <!-- Персонаж (светлый) -->
-    <a-entity id="character" 
-              gltf-model="#main-model"
-              position="0 0 -3"
-              scale="1 1 1"
-              animation-mixer="clip: walk"
-              material="color: #ffffff; metalness: 0.2; roughness: 0.4">
-    </a-entity>
+      <!-- Окружение Tron -->
+      <a-entity environment="preset: tron; dressingAmount: 12;"></a-entity>
 
-    <!-- Освещение -->
-    <a-light type="ambient" color="#ffffff" intensity="0.9"></a-light>
-    <a-light type="directional" color="#ffffff" intensity="1.5" position="-1 3 1"></a-light>
-    <a-light type="hemisphere" color="#ffffff" groundColor="#d0e8ff" intensity="0.7"></a-light>
+      <!-- Персонаж -->
+      <a-entity id="avatar"
+                gltf-model="#walkman"
+                position="0 0 -2"
+                scale="1 1 1"
+                my-anim></a-entity>
 
-    <!-- Камера -->
-    <a-camera position="0 1.6 3" look-controls wasd-controls>
-      <a-cursor color="#5a8eff"></a-cursor>
-    </a-camera>
-  </a-scene>
+      <a-camera position="0 1.6 2"></a-camera>
+    </a-scene>
 
-  <script>
-    // Глобальные переменные
-    let mixer, model;
-    const animationClips = {};
-    const loader = new THREE.GLTFLoader();
+    <script>
+      let mixer = null;
+      let model = null;
+      let currentAction = null;
+      const actions = {};
+      const loader = new THREE.GLTFLoader();
 
-    // Позиция персонажа при прыжке
-    const jumpHeight = 0.5;
-    const jumpDuration = 1000; // 1 секунда
-    let isJumping = false;
+      AFRAME.registerComponent('my-anim', {
+        init: function () {
+          this.el.addEventListener('model-loaded', () => {
+            model = this.el.getObject3D('mesh');
+            const gltfModel = this.el.components['gltf-model'].model;
 
-    // Инициализация сцены
-    document.querySelector('a-scene').addEventListener('loaded', () => {
-      const character = document.getElementById('character');
-      
-      character.addEventListener('model-loaded', () => {
-        model = character.object3D;
-        const gltf = character.components['gltf-model'].model;
-        
-        // Осветляем материалы персонажа
-        model.traverse((node) => {
-          if (node.material) {
-            node.material.color.setHex(0xeeeeee);
-            node.material.needsUpdate = true;
-          }
-        });
-        
-        // Инициализация системы анимаций
-        mixer = new THREE.AnimationMixer(model);
-        
-        // Загрузка основной анимации (ходьба)
-        if (gltf.animations?.length > 0) {
-          animationClips['walk'] = gltf.animations[0];
-          updateStatus('Модель загружена. Выберите анимацию');
-          loadAdditionalAnimations();
-        } else {
-          updateStatus('Внимание: модель не содержит анимаций');
+            mixer = new THREE.AnimationMixer(model);
+
+            gltfModel.animations.forEach(clip => {
+              actions[clip.name] = mixer.clipAction(clip, model);
+              console.log('Встроенная анимация:', clip.name);
+            });
+
+            playBuiltInAnimation();
+          });
+        },
+        tick: function (_, delta) {
+          if (mixer) mixer.update(delta / 1000);
         }
       });
-    });
 
-    // Загрузка дополнительных анимаций
-    function loadAdditionalAnimations() {
-      // Загрузка анимации махания
-      loader.load(document.querySelector('#waving-anim').getAttribute('src'), 
-        (gltf) => {
-          if (gltf.animations?.length > 0) {
-            animationClips['waving'] = gltf.animations[0];
-          }
-        },
-        undefined,
-        (err) => console.error('Ошибка загрузки waving.glb:', err)
-      );
+      function playBuiltInAnimation() {
+        const clipName = Object.keys(actions)[0];
+        if (!clipName) return alert("Нет встроенной анимации");
 
-      // Загрузка анимации прыжков
-      loader.load(document.querySelector('#jump-anim').getAttribute('src'), 
-        (gltf) => {
-          if (gltf.animations?.length > 0) {
-            animationClips['jump'] = gltf.animations[0];
-          }
-        },
-        undefined,
-        (err) => console.error('Ошибка загрузки jump.glb:', err)
-      );
-    }
-
-    // Воспроизведение анимации
-    function playAnimation(name) {
-      if (!mixer || !animationClips[name]) {
-        console.error(`Анимация "${name}" не найдена`);
-        updateStatus(`Ошибка: анимация "${name}" не загружена`);
-        return;
+        if (currentAction) currentAction.fadeOut(0.3);
+        currentAction = actions[clipName];
+        currentAction.reset().fadeIn(0.3).play();
+        console.log("▶ Воспроизведена встроенная:", clipName);
       }
-      
-      // Останавливаем все текущие анимации
-      mixer.stopAllAction();
-      
-      // Создаем и воспроизводим новую анимацию
-      const action = mixer.clipAction(animationClips[name]);
-      action.reset()
-        .setEffectiveTimeScale(1.0)
-        .setEffectiveWeight(1.0)
-        .fadeIn(0.3)
-        .play();
-      
-      // Специальная обработка прыжка
-      if (name === 'jump' && !isJumping) {
-        performJump();
+
+      function playExternalAnimation(file) {
+        if (!model || !mixer) return alert("Модель ещё не готова");
+
+        loader.load(`assets/${file}`, (gltf) => {
+          const clip = gltf.animations[0];
+          if (!clip) return alert("Нет анимации в " + file);
+
+          const action = mixer.clipAction(clip, model);
+
+          if (currentAction) currentAction.fadeOut(0.3);
+          currentAction = action;
+          action.reset().fadeIn(0.3).play();
+
+          console.log(`▶ Воспроизведена внешняя анимация из ${file}`);
+        }, undefined, (err) => {
+          console.error("Ошибка загрузки анимации:", err);
+          alert("Ошибка загрузки файла: " + file);
+        });
       }
-      
-      updateStatus(`Воспроизводится: ${name}`);
-    }
-
-    // Анимация прыжка с физикой
-    function performJump() {
-      const character = document.getElementById('character');
-      const startPos = character.getAttribute('position').y;
-      isJumping = true;
-      
-      // Вверх
-      let startTime = Date.now();
-      const jumpUp = () => {
-        const elapsed = Date.now() - startTime;
-        const progress = elapsed / jumpDuration;
-        
-        if (progress < 0.5) {
-          const newY = startPos + (jumpHeight * progress * 2);
-          character.setAttribute('position', {y: newY});
-          requestAnimationFrame(jumpUp);
-        } else {
-          // Вниз
-          const fallDown = () => {
-            const elapsed = Date.now() - startTime - jumpDuration/2;
-            const progress = elapsed / (jumpDuration/2);
-            
-            if (progress < 1) {
-              const newY = startPos + jumpHeight - (jumpHeight * progress);
-              character.setAttribute('position', {y: newY});
-              requestAnimationFrame(fallDown);
-            } else {
-              character.setAttribute('position', {y: startPos});
-              isJumping = false;
-            }
-          };
-          requestAnimationFrame(fallDown);
-        }
-      };
-      requestAnimationFrame(jumpUp);
-    }
-
-    // Обновление статуса
-    function updateStatus(message) {
-      document.getElementById('status').textContent = message;
-    }
-
-    // Цикл анимации
-    const scene = document.querySelector('a-scene');
-    scene.addEventListener('renderstart', () => {
-      const clock = new THREE.Clock();
-      function animate() {
-        requestAnimationFrame(animate);
-        if (mixer) mixer.update(clock.getDelta());
-      }
-      animate();
-    });
-  </script>
-</body>
+    </script>
+  </body>
 </html>
